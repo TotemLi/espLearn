@@ -31,10 +31,12 @@ void buttopn_init(uint32_t button_num) {
 void app_main(void)
 {
     configure_led();
-    buttopn_init(18);
+    // buttopn_init(7);
 
     while (1)
     {
+        led_state = !led_state;
+        blink_led(led_state);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
