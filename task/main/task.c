@@ -12,6 +12,19 @@ void taskA(void *param) {
     }
 }
 
+void taskProducer(void *param) {
+    QueueHandle_t queue = (QueueHandle_t)param;
+
+    int i = 0;
+    while (1)
+    {
+        if (xQueueSend(queue, &i, 0)!=pdPASS) {
+            ESP_LOGI(TAG, "send success");
+        }
+    }
+    
+}
+
 void app_main(void)
 {
     TaskHandle_t myTaskA;
