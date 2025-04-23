@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "esp_log.h"
 
 static const char *TAG = "task";
@@ -110,7 +111,26 @@ void testQueueSet(void)
     }
 }
 
+void consumeSemaphoreB(void *param)
+{
+    SemaphoreHandle_t semaphoreB = (SemaphoreHandle_t)param;
+    while (1)
+    {
+        xSemaphoreTake(semaphoreB, portMAX_DELAY);
+        ESP_LOGI(TAG, "take a semaphore");
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        xSemaphoreGive(semaphoreB); // 释放信号量
+    }
+}
+
+void testSemaphore(void)
+{
+    SemaphoreHandle_t semaphoreB = xSemaphoreCreateBinary();
+    xSemaphoreGive(semaphoreB);
+    xTaskCreate(consumeSemaphoreB, "consumeSemaphoreB", 2048, semaphoreB, 1, NULL);
+}
+
 void app_main(void)
 {
-    testQueueSet();
+    testSemaphore();
 }
