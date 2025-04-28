@@ -3,6 +3,7 @@
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "test.h"
 
 static const char *TAG = "spi";
 
@@ -80,4 +81,9 @@ static void spi_init()
 
 void app_main(void)
 {
+    while (1)
+    {
+        test();
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
 }
