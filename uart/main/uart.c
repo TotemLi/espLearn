@@ -43,11 +43,12 @@ static void uart_event_task(void *pvParam)
         if (xQueueReceive(uart_queue, (void *)&event, (TickType_t)portMAX_DELAY))
         {
             bzero(dtmp, RD_BUF_SIZE);
+            ESP_LOGI("uart", "event: %d", event.type);
             switch (event.type)
             {
             case UART_DATA:
                 uart_read_bytes(uart_num, dtmp, event.size, portMAX_DELAY);
-                ESP_LOGI("uart", "data: %s", dtmp)
+                ESP_LOGI("uart", "data: %s", dtmp);
                 break;
             default:
                 break;
@@ -81,16 +82,6 @@ void app_main(void)
     char *data;
     uart_init();
     send_data(txt);
-    while (1)
-    {
-        data = receve_data();
-        if (data == NULL)
-        {
-            vTaskDelay(pdMS_TO_TICKS(1000));
-            continue;
-        }
-        ESP_LOGI("uart", "data: %s", data);
-        send_data(data);
-        free(data);
-    }
+    uart_pattern_queue_reset(uart_num, 20);
+    xTaskCreate(uart_event_task, "uart_event_task", 3072, NULL, 12, NULL);
 }
