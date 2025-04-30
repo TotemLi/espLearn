@@ -1,72 +1,70 @@
 #include <stdio.h>
-#include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "driver/gptimer.h"
+#include "freertos/semphr.h"
 
-// void led_init()
-// {
-//     gpio_config_t cfg = {
-//         //     uint64_t pin_bit_mask;          /*!< GPIO pin: set with bit mask, each bit maps to a GPIO */
-//         // gpio_mode_t mode;               /*!< GPIO mode: set input/output mode                     */
-//         // gpio_pullup_t pull_up_en;       /*!< GPIO pull-up                                         */
-//         // gpio_pulldown_t pull_down_en;   /*!< GPIO pull-down                                       */
-//         // gpio_int_type_t intr_type;      /*!< GPIO interrupt type
-//         .pin_bit_mask = GPIO_NUM_38,
-//         .mode = GPIO_MODE_OUTPUT,
-//         .pull_up_en = GPIO_PULLUP_ENABLE,
-//         .pull_down_en = GPIO_PULLDOWN_ENABLE,
-//     };
-//     gpio_config(&cfg);
-// }
+SemaphoreHandle_t semaphoreHandle;
 
-// void app_main(void)
-// {
-//     while (1)
-//     {
-//         ESP_LOGI("debug", "1111");
-//         gpio_set_level(GPIO_NUM_38, !gpio_get_level(GPIO_NUM_38));
-//         vTaskDelay(pdMS_TO_TICKS(1000));
-//     }
-// }
+void do_task(void *param)
+{
+    while (1)
+    {
+        if (xSemaphoreTake(semaphoreHandle, portMAX_DELAY) == pdTRUE)
+        {
+            ESP_LOGI("time", "alarm");
+        }
+    }
+}
 
-#define RGB_LED_R_PIN GPIO_NUM_38
-#define RGB_LED_G_PIN GPIO_NUM_39
-#define RGB_LED_B_PIN GPIO_NUM_40
+static bool time_cb(gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata, void *user_ctx)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(semaphoreHandle, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    return true;
+}
 
-static const char *TAG = "RGB_LED";
+void timer_init()
+{
+    // 新建定时器
+    gptimer_config_t config = {
+        .clk_src = GPTIMER_CLK_SRC_DEFAULT,
+        .direction = GPTIMER_COUNT_UP,
+        .resolution_hz = 1000000, // 1MHZ
+    };
+    gptimer_handle_t timer;
+    gptimer_new_timer(&config, &timer);
+
+    // 配置定时
+    gptimer_alarm_config_t alarm_config = {
+        .alarm_count = 3000000,
+        .reload_count = 0,
+        .flags.auto_reload_on_alarm = 1,
+    };
+    gptimer_set_alarm_action(timer, &alarm_config);
+
+    // 设置定时到了执行的回调
+    gptimer_event_callbacks_t cbs = {
+        .on_alarm = time_cb,
+    };
+    gptimer_register_event_callbacks(timer, &cbs, NULL);
+
+    // 使能定时器
+    gptimer_enable(timer);
+
+    // 启动定时器
+    gptimer_start(timer);
+}
 
 void app_main(void)
 {
-    // 配置RGB LED引脚为输出模式
-    gpio_reset_pin(RGB_LED_R_PIN);
-    gpio_set_direction(RGB_LED_R_PIN, GPIO_MODE_OUTPUT);
-    gpio_reset_pin(RGB_LED_G_PIN);
-    gpio_set_direction(RGB_LED_G_PIN, GPIO_MODE_OUTPUT);
-    gpio_reset_pin(RGB_LED_B_PIN);
-    gpio_set_direction(RGB_LED_B_PIN, GPIO_MODE_OUTPUT);
-
+    semaphoreHandle = xSemaphoreCreateBinary();
+    xTaskCreate(do_task, "do_task", 2048, NULL, 5, NULL);
+    timer_init();
     while (1)
     {
-        // 点亮红色LED
-        ESP_LOGI(TAG, "Turning on red LED");
-        gpio_set_level(RGB_LED_R_PIN, 1);
-        gpio_set_level(RGB_LED_G_PIN, 0);
-        gpio_set_level(RGB_LED_B_PIN, 0);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        // 点亮绿色LED
-        ESP_LOGI(TAG, "Turning on green LED");
-        gpio_set_level(RGB_LED_R_PIN, 0);
-        gpio_set_level(RGB_LED_G_PIN, 1);
-        gpio_set_level(RGB_LED_B_PIN, 0);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-        // 点亮蓝色LED
-        ESP_LOGI(TAG, "Turning on blue LED");
-        gpio_set_level(RGB_LED_R_PIN, 0);
-        gpio_set_level(RGB_LED_G_PIN, 0);
-        gpio_set_level(RGB_LED_B_PIN, 1);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
