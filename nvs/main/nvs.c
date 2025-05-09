@@ -20,7 +20,7 @@ void app_main(void)
     ESP_LOGI(TAG, "nvs init success");
 
     nvs_handle_t my_handle;
-    err = nvs_open("totemli", NVS_READWRITE, &my_handle);
+    err = nvs_open_from_partition("my_nvs", "totemli", NVS_READWRITE, &my_handle);
     ESP_ERROR_CHECK(err);
 
     err = nvs_set_i32(my_handle, "age", 29);
