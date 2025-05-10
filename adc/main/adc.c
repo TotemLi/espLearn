@@ -4,7 +4,7 @@
 #include "esp_adc/adc_continuous.h"
 #include "esp_adc/adc_filter.h"
 
-static adc_channel_t channel[2] = {ADC_CHANNEL_2};
+static adc_channel_t channel[] = {ADC_CHANNEL_2};
 
 static void adc_init(adc_channel_t *channel, uint8_t channel_num, adc_continuous_handle_t *out_handle)
 {
