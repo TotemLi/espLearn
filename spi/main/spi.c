@@ -80,7 +80,7 @@ void make_dir(const char *path)
     int ret = mkdir(path, 0777);
     if (ret != 0 && errno != EEXIST)
     {
-        ESP_LOGE(TAG, "mkdir path: %s err, ret: %d, errno: %d", path, ret, errno);
+        ESP_LOGE(TAG, "mkdir path: %s err, ret: %d, errno: %d, errmsg: %s", path, ret, errno, strerror(errno));
         return;
     }
 }
