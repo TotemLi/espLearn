@@ -18,7 +18,6 @@ static const char *TAG = "spi";
 
 #define SPI_TRANSFER_MAX_SIZE 4096
 #define SPI_HOST_FREQ 4000000UL
-#define MOUNT_POINT "/sdcard"
 
 void init_tf(void)
 {
