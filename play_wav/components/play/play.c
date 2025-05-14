@@ -69,9 +69,9 @@ void print_wav_header(wav_header_t *header)
     ESP_LOGI(TAG, "  数据大小: %" PRIu32 " 字节\n", header->data_chunk.subchunk_size);
 }
 
-void i2s_init(uint32_t sample_rate, uint16_t bits_per_sample, uint16_t num_of_channels)
+void i2s_init_play(uint32_t sample_rate, uint16_t bits_per_sample, uint16_t num_of_channels)
 {
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
 
     i2s_std_config_t tx_std_cfg = {
