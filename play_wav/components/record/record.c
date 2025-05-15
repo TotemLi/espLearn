@@ -12,9 +12,9 @@
 static const char *TAG = "record_wav";
 static i2s_chan_handle_t rx_chan;
 
-#define BCLK_IO GPIO_NUM_4
-#define WS_IO GPIO_NUM_5
-#define DOUT_IO GPIO_NUM_6
+#define BCLK_IO GPIO_NUM_13
+#define WS_IO GPIO_NUM_14
+#define DOUT_IO GPIO_NUM_15
 
 #define SAMPLE_RATE 44100
 

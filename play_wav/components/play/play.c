@@ -11,9 +11,9 @@
 static const char *TAG = "play_wav";
 static i2s_chan_handle_t tx_chan;
 
-#define BCLK_IO GPIO_NUM_1
-#define WS_IO GPIO_NUM_3
-#define DOUT_IO GPIO_NUM_2
+#define BCLK_IO GPIO_NUM_16
+#define WS_IO GPIO_NUM_17
+#define DOUT_IO GPIO_NUM_15
 
 void read_wav_header(const char *path, wav_header_t *header)
 {
@@ -110,6 +110,8 @@ void i2s_play(const char *path)
         ESP_LOGI(TAG, "read header err: %s", strerror(errno));
         return;
     }
+
+    i2s_init_play(header->fmt_chunk.sample_rate, header->fmt_chunk.bits_per_sample, header->fmt_chunk.num_of_channels);
 
     uint32_t buf_size;
     buf_size = header->fmt_chunk.num_of_channels * header->fmt_chunk.bits_per_sample * 16;
