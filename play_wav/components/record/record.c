@@ -12,29 +12,50 @@
 static const char *TAG = "record_wav";
 static i2s_chan_handle_t rx_chan;
 
-#define BCLK_IO GPIO_NUM_13
-#define WS_IO GPIO_NUM_14
-#define DOUT_IO GPIO_NUM_15
+#define BCLK_IO GPIO_NUM_11 // SCK
+#define WS_IO GPIO_NUM_12   // WS
+#define DOUT_IO GPIO_NUM_13 // SD
 
 #define SAMPLE_RATE 44100
+#define SAMPLE_BITS I2S_DATA_BIT_WIDTH_24BIT
+#define BYTE_RATE (SAMPLE_RATE * (SAMPLE_BITS / 8)) * 1
+#define SAMPLE_SIZE (SAMPLE_BITS * 1024)
 
-#define BUF_SIZE (1023 * 1 * 32 / 8)
-uint8_t buf[BUF_SIZE];
+static char i2s_readraw_buff[SAMPLE_SIZE];
 
 void i2s_init_record()
 {
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_MASTER);
-    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &rx_chan, NULL));
+    ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, NULL, &rx_chan));
 
     i2s_std_config_t tx_std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_24BIT, I2S_SLOT_MODE_MONO),
+        // .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
+        .clk_cfg = {
+            .sample_rate_hz = SAMPLE_RATE,
+            .clk_src = I2S_CLK_SRC_DEFAULT,
+            .ext_clk_freq_hz = 0,
+            .mclk_multiple = I2S_MCLK_MULTIPLE_384,
+            .bclk_div = 8,
+        },
+        // .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(SAMPLE_BITS, I2S_SLOT_MODE_MONO),
+        .slot_cfg = {
+            .data_bit_width = SAMPLE_BITS,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+            .slot_mode = I2S_SLOT_MODE_MONO,
+            .slot_mask = I2S_STD_SLOT_LEFT,
+            .ws_width = SAMPLE_BITS,
+            .ws_pol = false,
+            .bit_shift = false,
+            .left_align = true,
+            .big_endian = false,
+            .bit_order_lsb = false,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
-            .bclk = BCLK_IO, // 位时钟
-            .ws = WS_IO,     // 左右声道选择
-            .dout = DOUT_IO, // 输出
-            .din = I2S_GPIO_UNUSED,
+            .bclk = BCLK_IO,         // 位时钟
+            .ws = WS_IO,             // 左右声道选择
+            .dout = I2S_GPIO_UNUSED, // 输出
+            .din = DOUT_IO,
             .invert_flags = {
                 .mclk_inv = false,
                 .bclk_inv = false,
@@ -46,9 +67,26 @@ void i2s_init_record()
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan));
 }
 
-void i2s_record(const char *path)
+void i2s_record(const char *path, uint32_t rec_time)
 {
     esp_err_t err;
+    int flash_wr_size = 0;
+    i2s_init_record();
+
+    // size_t read_num = 0;
+    // ESP_LOGI(TAG, "print buf content");
+    // while (1)
+    // {
+    //     err = i2s_channel_read(rx_chan, buf, BUF_SIZE, &read_num, portMAX_DELAY);
+    //     if (err != ESP_OK)
+    //     {
+    //         ESP_LOGE(TAG, "i2s_channel_read err: %s", esp_err_to_name(err));
+    //         break;
+    //     }
+    //     ESP_LOG_BUFFER_HEXDUMP("TAG", buf, BUF_SIZE, ESP_LOG_INFO);
+    //     vTaskDelay(pdMS_TO_TICKS(1000));
+    // }
+
     FILE *f = fopen(path, "w");
     if (f == NULL)
     {
@@ -56,34 +94,36 @@ void i2s_record(const char *path)
         return;
     }
 
-    wav_header_t header = WAV_HEADER_PCM_DEFAULT(0, I2S_DATA_BIT_WIDTH_24BIT, SAMPLE_RATE, I2S_SLOT_MODE_MONO);
-    size_t written_len = fwrite(&header, 1, sizeof(wav_header_t), f);
-    if (written_len != sizeof(wav_header_t))
-    {
-        ESP_LOGE(TAG, "write err, write len: %d", written_len);
-        fclose(f);
-        return;
-    }
+    uint32_t flash_rec_time = BYTE_RATE * rec_time;
+    wav_header_t header = WAV_HEADER_PCM_DEFAULT(flash_rec_time, SAMPLE_BITS, SAMPLE_RATE, I2S_SLOT_MODE_MONO);
+    fwrite(&header, sizeof(header), 1, f);
+    // size_t written_len = fwrite(&header, sizeof(header), 1, f);
+    // if (written_len != sizeof(header))
+    // {
+    //     ESP_LOGE(TAG, "write err, write len: %d", written_len);
+    //     fclose(f);
+    //     return;
+    // }
 
-    size_t wav_sample_size = 0;
     size_t read_num = 0;
-    while (1)
+    ESP_LOGI(TAG, "Recording begin!");
+    while (flash_wr_size < flash_rec_time)
     {
-        err = i2s_channel_read(rx_chan, buf, BUF_SIZE, &read_num, portMAX_DELAY);
+        err = i2s_channel_read(rx_chan, i2s_readraw_buff, SAMPLE_SIZE, &read_num, portMAX_DELAY);
         if (err != ESP_OK)
         {
             ESP_LOGE(TAG, "i2s_channel_read err: %s", esp_err_to_name(err));
             break;
         }
-        size_t written_len = fwrite(buf, 1, read_num, f);
-        if (written_len != read_num)
-        {
-            ESP_LOGE(TAG, "write err, write len: %d", written_len);
-            break;
-        }
-        wav_sample_size++;
+        fwrite(i2s_readraw_buff, read_num, 1, f);
+        // size_t written_len = fwrite(i2s_readraw_buff, read_num, 1, f);
+        // if (written_len != read_num)
+        // {
+        //     ESP_LOGE(TAG, "write err, write len: %d", written_len);
+        //     break;
+        // }
+        flash_wr_size += read_num;
     }
-    // TODO 更新wav header 中size的信息
-
+    ESP_LOGI(TAG, "Recording done!");
     fclose(f);
 }
