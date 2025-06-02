@@ -11,13 +11,14 @@
 
 static const char *TAG = "spi";
 
-#define PIN_NUM_CS 8
-#define PIN_NUM_SCLK 2
-#define PIN_NUM_MOSI 4
-#define PIN_NUM_MISO 5
+#define PIN_NUM_CS GPIO_NUM_36
+#define PIN_NUM_MOSI GPIO_NUM_37
+#define PIN_NUM_SCLK GPIO_NUM_38
+#define PIN_NUM_MISO GPIO_NUM_39
 
 #define SPI_TRANSFER_MAX_SIZE 4096
 #define SPI_HOST_FREQ 4000000UL
+sdmmc_card_t *card;
 
 void init_tf(void)
 {
@@ -29,7 +30,6 @@ void init_tf(void)
         .allocation_unit_size = 16 * 1024,
     };
 
-    sdmmc_card_t *card;
     const char mount_point[] = MOUNT_POINT;
 
     sdmmc_host_t host = SDSPI_HOST_DEFAULT();
@@ -52,6 +52,12 @@ void init_tf(void)
     err = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config, &card);
     ESP_ERROR_CHECK(err);
     ESP_LOGI(TAG, "mount success!");
+}
+
+void unmount_tf(void)
+{
+    esp_vfs_fat_sdcard_unmount(MOUNT_POINT, card);
+    ESP_LOGI(TAG, "Card unmounted");
 }
 
 void list_dir(const char *path)

@@ -11,9 +11,9 @@
 static const char *TAG = "play_wav";
 static i2s_chan_handle_t tx_chan;
 
-#define BCLK_IO GPIO_NUM_1
-#define WS_IO GPIO_NUM_3
-#define DOUT_IO GPIO_NUM_2
+#define BCLK_IO GPIO_NUM_16
+#define WS_IO GPIO_NUM_17
+#define DOUT_IO GPIO_NUM_15
 
 void read_wav_header(const char *path, wav_header_t *header)
 {
@@ -75,8 +75,27 @@ void i2s_init_play(uint32_t sample_rate, uint16_t bits_per_sample, uint16_t num_
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, &tx_chan, NULL));
 
     i2s_std_config_t tx_std_cfg = {
-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sample_rate),
-        .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(bits_per_sample, num_of_channels),
+        // .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(sample_rate),
+        .clk_cfg = {
+            .sample_rate_hz = sample_rate,
+            .clk_src = I2S_CLK_SRC_DEFAULT,
+            .ext_clk_freq_hz = 0,
+            .mclk_multiple = I2S_MCLK_MULTIPLE_384,
+            .bclk_div = 8,
+        },
+        // .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(bits_per_sample, num_of_channels),
+        .slot_cfg = {
+            .data_bit_width = bits_per_sample,
+            .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO,
+            .slot_mode = I2S_SLOT_MODE_MONO,
+            .slot_mask = I2S_STD_SLOT_LEFT,
+            .ws_width = num_of_channels,
+            .ws_pol = false,
+            .bit_shift = false,
+            .left_align = true,
+            .big_endian = false,
+            .bit_order_lsb = false,
+        },
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,
             .bclk = BCLK_IO, // 位时钟
@@ -110,6 +129,8 @@ void i2s_play(const char *path)
         ESP_LOGI(TAG, "read header err: %s", strerror(errno));
         return;
     }
+
+    i2s_init_play(header->fmt_chunk.sample_rate, header->fmt_chunk.bits_per_sample, header->fmt_chunk.num_of_channels);
 
     uint32_t buf_size;
     buf_size = header->fmt_chunk.num_of_channels * header->fmt_chunk.bits_per_sample * 16;
