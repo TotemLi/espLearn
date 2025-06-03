@@ -83,6 +83,9 @@ void app_main(void)
     // 交换xy轴
     // ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
 
+    // 镜像
+    ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
+
     // 把buffer中的颜色数据绘制到屏幕上
     // ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, NULL));
 
