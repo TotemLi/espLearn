@@ -10,7 +10,6 @@
 #include "driver/gpio.h"
 
 #define LCD_HOST SPI2_HOST
-#define PARALLEL_LINES 30
 #define ROTATE_FRAME 30
 
 #define LCD_PIXEL_CLOCK_HZ (20 * 1000 * 1000)
@@ -19,10 +18,10 @@
 
 #define PIN_NUM_MOSI 7
 #define PIN_NUM_SCK 6
-#define PIN_NUM_CS 17
-#define PIN_NUM_DC 15
-#define PIN_NUM_RST 16
-#define PIN_NUM_BK_LIGHT 5
+#define PIN_NUM_CS 17      // 片选信号，低电平使能
+#define PIN_NUM_DC 15      // 寄存器/数据选择信号，低电平：寄存器，高电平：数据
+#define PIN_NUM_RST 16     // 复位信号，低电平复位
+#define PIN_NUM_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
 
 #define LCD_H_RES 480
 #define LCD_V_RES 320
@@ -43,7 +42,7 @@ void app_main(void)
         .miso_io_num = -1,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
-        .max_transfer_sz = PARALLEL_LINES * LCD_H_RES * 2 + 8,
+        .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
     };
     ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
 
@@ -63,13 +62,11 @@ void app_main(void)
     esp_lcd_panel_handle_t panel_handle = NULL;
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_NUM_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
-    // Turn off backlight to avoid unpredictable display on the LCD screen while initializing
-    // the LCD panel driver. (Different LCD screens may need different levels)
     ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_OFF_LEVEL));
 
     // Reset the display
@@ -80,11 +77,31 @@ void app_main(void)
 
     // Turn on the screen
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
-    ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
+    // 反色
+    // ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
 
-    // // Swap x and y axis (Different LCD screens may need different options)
+    // 交换xy轴
     // ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
 
-    // Turn on backlight (Different LCD screens may need different levels)
+    // 把buffer中的颜色数据绘制到屏幕上
+    // ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, NULL));
+
     ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL));
+
+    // 全屏显示未红色
+    lcd_set_color(panel_handle, 0xf800);
+}
+
+void lcd_set_color(esp_lcd_panel_handle_t panel, uint16_t color)
+{
+    uint16_t *buffer = (uint16_t *)heap_caps_malloc(LCD_H_RES * sizeof(uint16_t), MALLOC_CAP_DMA);
+    for (size_t i = 0; i < LCD_H_RES; i++)
+    {
+        buffer[i] = color;
+    }
+    for (int y = 0; y < LCD_V_RES; y++)
+    {
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_H_RES, y + 1, buffer));
+    }
+    free(buffer);
 }
