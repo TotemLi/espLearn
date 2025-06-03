@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -8,6 +9,10 @@
 #include "esp_heap_caps.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "yingwu.h"
+#include "esp_log.h"
+
+static char *TAG = "lcd";
 
 #define LCD_HOST SPI2_HOST
 #define ROTATE_FRAME 30
@@ -23,10 +28,42 @@
 #define PIN_NUM_RST 16     // 复位信号，低电平复位
 #define PIN_NUM_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
 
-#define LCD_H_RES 480
-#define LCD_V_RES 320
+#define LCD_H_RES 320
+#define LCD_V_RES 240
 #define LCD_CMD_BITS 8
 #define LCD_PARAM_BITS 8
+
+void lcd_set_color(esp_lcd_panel_handle_t panel, uint16_t color)
+{
+    uint16_t *buffer = (uint16_t *)heap_caps_malloc(LCD_H_RES * sizeof(uint16_t), MALLOC_CAP_DMA);
+    for (size_t i = 0; i < LCD_H_RES; i++)
+    {
+        buffer[i] = color;
+    }
+    for (int y = 0; y < LCD_V_RES; y++)
+    {
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_H_RES, y + 1, buffer));
+    }
+    free(buffer);
+}
+
+// 显示图片
+void lcd_draw_pictrue(esp_lcd_panel_handle_t panel, int x_start, int y_start, int x_end, int y_end, const unsigned char *gImage)
+{
+    uint16_t x_l = 320;
+    uint16_t y_l = 240;
+
+    uint16_t *buffer = (uint16_t *)heap_caps_malloc(x_l * sizeof(uint16_t), MALLOC_CAP_DMA);
+    for (uint16_t y = 0; y < y_l; y++)
+    {
+        for (uint16_t x = 0; x < x_l; x++)
+        {
+            buffer[x] = (gImage[y * x_l * 2 + x * 2 + 1] << 8) | gImage[y * x_l * 2 + x * 2];
+        }
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, y, x_l, y + 1, buffer));
+    }
+    free(buffer);
+}
 
 void app_main(void)
 {
@@ -77,11 +114,12 @@ void app_main(void)
 
     // Turn on the screen
     ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_handle, true));
+
     // 反色
     // ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
 
     // 交换xy轴
-    // ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
+    ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
 
     // 镜像
     ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
@@ -92,19 +130,8 @@ void app_main(void)
     ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL));
 
     // 全屏显示未红色
-    lcd_set_color(panel_handle, 0xf800);
-}
+    lcd_set_color(panel_handle, 0x0000);
 
-void lcd_set_color(esp_lcd_panel_handle_t panel, uint16_t color)
-{
-    uint16_t *buffer = (uint16_t *)heap_caps_malloc(LCD_H_RES * sizeof(uint16_t), MALLOC_CAP_DMA);
-    for (size_t i = 0; i < LCD_H_RES; i++)
-    {
-        buffer[i] = color;
-    }
-    for (int y = 0; y < LCD_V_RES; y++)
-    {
-        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, y, LCD_H_RES, y + 1, buffer));
-    }
-    free(buffer);
+    // 显示图片
+    lcd_draw_pictrue(panel_handle, 0, 0, 320, 240, gImage_yingwu);
 }
