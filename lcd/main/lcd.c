@@ -184,9 +184,13 @@ static void app_main_display(void)
     lv_obj_t *scr = lv_scr_act();
     lvgl_port_lock(0);
 
-    lv_obj_t *img_logo = lv_img_create(scr);
-    lv_img_set_src(img_logo, &esp_logo);
+    // lv_obj_t *img_logo = lv_img_create(scr);
+    // lv_img_set_src(img_logo, &esp_logo);
     // lv_obj_align(img_logo, LV_ALIGN_TOP_MID, 0, 20);
+
+    lv_obj_t *label = lv_label_create(scr);
+    lv_obj_set_size(label, 100, 80);
+    lv_label_set_text(label, "你好 totemli");
 
     lvgl_port_unlock();
 }
@@ -196,7 +200,7 @@ void app_main(void)
     ESP_ERROR_CHECK(lcd_init());
     ESP_ERROR_CHECK(lvgl_init());
 
-    lcd_set_color(panel_handle, 0x0000);
+    // lcd_set_color(panel_handle, 0x0000);
 
     app_main_display();
 
