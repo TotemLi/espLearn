@@ -48,19 +48,16 @@ void lcd_set_color(esp_lcd_panel_handle_t panel, uint16_t color)
 }
 
 // 显示图片
-void lcd_draw_pictrue(esp_lcd_panel_handle_t panel, int x_start, int y_start, int x_end, int y_end, const unsigned char *gImage)
+void lcd_draw_pictrue(esp_lcd_panel_handle_t panel, uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end, const unsigned char *gImage)
 {
-    uint16_t x_l = 320;
-    uint16_t y_l = 240;
-
-    uint16_t *buffer = (uint16_t *)heap_caps_malloc(x_l * sizeof(uint16_t), MALLOC_CAP_DMA);
-    for (uint16_t y = 0; y < y_l; y++)
+    uint16_t *buffer = (uint16_t *)heap_caps_malloc(x_end * sizeof(uint16_t), MALLOC_CAP_DMA);
+    for (uint16_t y = y_start; y < y_end; y++)
     {
-        for (uint16_t x = 0; x < x_l; x++)
+        for (uint16_t x = x_start; x < x_end; x++)
         {
-            buffer[x] = (gImage[y * x_l * 2 + x * 2 + 1] << 8) | gImage[y * x_l * 2 + x * 2];
+            buffer[x] = (gImage[y * x_end * 2 + x * 2 + 1] << 8) | gImage[y * x_end * 2 + x * 2];
         }
-        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, 0, y, x_l, y + 1, buffer));
+        ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel, x_start, y, x_end, y + 1, buffer));
     }
     free(buffer);
 }
