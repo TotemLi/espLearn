@@ -181,6 +181,9 @@ static esp_err_t lvgl_init(void)
 
 static void app_main_display(void)
 {
+
+    LV_FONT_DECLARE(fangsong);
+
     lv_obj_t *scr = lv_scr_act();
     lvgl_port_lock(0);
 
@@ -191,6 +194,13 @@ static void app_main_display(void)
     lv_obj_t *label = lv_label_create(scr);
     lv_obj_set_size(label, 100, 80);
     lv_label_set_text(label, "你好 totemli");
+
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_text_font(&style, &fangsong);
+    lv_style_set_text_color(&style, lv_palette_main(LV_PALETTE_RED));
+
+    lv_obj_add_style(label, &style, 0);
 
     lvgl_port_unlock();
 }
