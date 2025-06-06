@@ -182,7 +182,7 @@ static esp_err_t lvgl_init(void)
 static void app_main_display(void)
 {
 
-    LV_FONT_DECLARE(fangsong);
+    LV_FONT_DECLARE(fang_song);
 
     lv_obj_t *scr = lv_scr_act();
     lvgl_port_lock(0);
@@ -197,7 +197,7 @@ static void app_main_display(void)
 
     static lv_style_t style;
     lv_style_init(&style);
-    lv_style_set_text_font(&style, &fangsong);
+    lv_style_set_text_font(&style, &fang_song);
     lv_style_set_text_color(&style, lv_palette_main(LV_PALETTE_RED));
 
     lv_obj_add_style(label, &style, 0);

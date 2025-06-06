@@ -1,4 +1,4 @@
-idf_component_register(SRCS "lcd.c" "fangsong.c"
+idf_component_register(SRCS "fang_song.c" "lcd.c"
                     INCLUDE_DIRS ".")
 
 lvgl_port_create_c_image("images/esp_logo.png" "images/" "ARGB8888" "NONE")
