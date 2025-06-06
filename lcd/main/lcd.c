@@ -218,6 +218,20 @@ static esp_err_t lvgl_init(void)
     return ESP_OK;
 }
 
+// 事件回调函数
+void event_handler(lv_event_t *e)
+{
+    int code = lv_event_get_code(e);
+    lv_obj_t *obj = lv_event_get_target(e);
+
+    if (code == LV_EVENT_CLICKED)
+    {
+        lv_obj_t *label = lv_event_get_user_data(e);
+        lv_label_set_text(label, "itheima");
+        printf("clicked\n");
+    }
+}
+
 static void app_main_display(void)
 {
 
@@ -244,6 +258,18 @@ static void app_main_display(void)
     lvgl_port_unlock();
 }
 
+static void show_button(void)
+{
+    // 创建按钮
+    lv_obj_t *btn = lv_btn_create(lv_scr_act());
+    lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
+    // 创建按钮上的文本
+    lv_obj_t *label = lv_label_create(btn);
+    lv_label_set_text(label, "button");
+    // 给按钮设置点击事件处理
+    lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
+}
+
 void app_main(void)
 {
     ESP_ERROR_CHECK(spi_init());
@@ -254,6 +280,7 @@ void app_main(void)
     // lcd_set_color(panel_handle, 0x0000);
 
     app_main_display();
+    // show_button();
 
     // 全屏显示未红色
     // lcd_set_color(panel_handle, 0x0000);
