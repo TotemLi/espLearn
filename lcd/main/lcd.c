@@ -26,14 +26,16 @@ static char *TAG = "lcd";
 #define LCD_BK_LIGHT_ON_LEVEL 1
 #define LCD_BK_LIGHT_OFF_LEVEL !LCD_BK_LIGHT_ON_LEVEL
 
-#define PIN_NUM_MOSI 7
-#define PIN_NUM_SCK 6
-#define PIN_NUM_CS 17      // 片选信号，低电平使能
-#define PIN_NUM_DC 15      // 寄存器/数据选择信号，低电平：寄存器，高电平：数据
-#define PIN_NUM_RST 16     // 复位信号，低电平复位
-#define PIN_NUM_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
+#define PIN_SCK 6
+#define PIN_MISO 4
+#define PIN_MOSI 7
 
-#define PIN_TOUCH_CS 21
+#define PIN_LCD_CS 17      // 片选信号，低电平使能
+#define PIN_LCD_DC 15      // 寄存器/数据选择信号，低电平：寄存器，高电平：数据
+#define PIN_LCD_RST 16     // 复位信号，低电平复位
+#define PIN_LCD_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
+
+#define PIN_TOUCH_CS 18
 
 #define LCD_H_RES 320
 #define LCD_V_RES 240
@@ -53,8 +55,8 @@ static lv_display_t *lvgl_disp = NULL;
 static esp_err_t spi_init(void)
 {
     spi_bus_config_t buscfg = {
-        .sclk_io_num = PIN_NUM_SCK,
-        .mosi_io_num = PIN_NUM_MOSI,
+        .sclk_io_num = PIN_SCK,
+        .mosi_io_num = PIN_MOSI,
         .miso_io_num = -1,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
@@ -93,13 +95,13 @@ static esp_err_t lcd_init(void)
 
     gpio_config_t bk_gpio_config = {
         .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = 1ULL << PIN_NUM_BK_LIGHT,
+        .pin_bit_mask = 1ULL << PIN_LCD_BK_LIGHT,
     };
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
     esp_lcd_panel_io_spi_config_t io_config = {
-        .dc_gpio_num = PIN_NUM_DC,
-        .cs_gpio_num = PIN_NUM_CS,
+        .dc_gpio_num = PIN_LCD_DC,
+        .cs_gpio_num = PIN_LCD_CS,
         .pclk_hz = LCD_PIXEL_CLOCK_HZ,
         .lcd_cmd_bits = LCD_CMD_BITS,
         .lcd_param_bits = LCD_PARAM_BITS,
@@ -110,13 +112,13 @@ static esp_err_t lcd_init(void)
     ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI_HOST, &io_config, &io_handle));
 
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = PIN_NUM_RST,
+        .reset_gpio_num = PIN_LCD_RST,
         .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB, // LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
     };
     ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(io_handle, &panel_config, &panel_handle));
 
-    ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_OFF_LEVEL));
+    ESP_ERROR_CHECK(gpio_set_level(PIN_LCD_BK_LIGHT, LCD_BK_LIGHT_OFF_LEVEL));
 
     // Reset the display
     ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_handle));
@@ -131,15 +133,15 @@ static esp_err_t lcd_init(void)
     // ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_handle, true));
 
     // 交换xy轴
-    ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
+    // ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_handle, true));
 
     // 镜像
-    ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
+    // ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_handle, true, false));
 
     // 把buffer中的颜色数据绘制到屏幕上
     // ESP_ERROR_CHECK(esp_lcd_panel_draw_bitmap(panel_handle, 0, 0, LCD_H_RES, LCD_V_RES, NULL));
 
-    ESP_ERROR_CHECK(gpio_set_level(PIN_NUM_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL));
+    ESP_ERROR_CHECK(gpio_set_level(PIN_LCD_BK_LIGHT, LCD_BK_LIGHT_ON_LEVEL));
 
     return ret;
 }
@@ -198,8 +200,8 @@ static esp_err_t lvgl_init(void)
         .color_format = LV_COLOR_FORMAT_RGB565,
         .rotation = {
             .swap_xy = true,
-            .mirror_x = true,
-            .mirror_y = false,
+            .mirror_x = false,
+            .mirror_y = true,
         },
         .flags = {
             .buff_dma = true,
@@ -208,12 +210,12 @@ static esp_err_t lvgl_init(void)
     };
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
-    /* 添加LVGL接口 */
-    const lvgl_port_touch_cfg_t touch_cfg = {
-        .disp = lvgl_disp,
-        .handle = tp,
-    };
-    lvgl_port_add_touch(&touch_cfg);
+    // /* 添加LVGL接口 */
+    // const lvgl_port_touch_cfg_t touch_cfg = {
+    //     .disp = lvgl_disp,
+    //     .handle = tp,
+    // };
+    // lvgl_port_add_touch(&touch_cfg);
 
     return ESP_OK;
 }
@@ -274,7 +276,7 @@ void app_main(void)
 {
     ESP_ERROR_CHECK(spi_init());
     ESP_ERROR_CHECK(lcd_init());
-    ESP_ERROR_CHECK(lcd_touch_init());
+    // ESP_ERROR_CHECK(lcd_touch_init());
     ESP_ERROR_CHECK(lvgl_init());
 
     // lcd_set_color(panel_handle, 0x0000);
