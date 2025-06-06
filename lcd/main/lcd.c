@@ -6,6 +6,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_vendor.h"
 #include "esp_lcd_panel_ops.h"
+#include "esp_lcd_touch.h"
 #include "esp_heap_caps.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
@@ -14,10 +15,11 @@
 #include "esp_lvgl_port.h"
 #include "esp_err.h"
 #include "esp_check.h"
+#include "esp_lcd_touch_xpt2046.h"
 
 static char *TAG = "lcd";
 
-#define LCD_HOST SPI2_HOST
+#define SPI_HOST SPI2_HOST
 #define ROTATE_FRAME 30
 
 #define LCD_PIXEL_CLOCK_HZ (20 * 1000 * 1000)
@@ -31,6 +33,8 @@ static char *TAG = "lcd";
 #define PIN_NUM_RST 16     // 复位信号，低电平复位
 #define PIN_NUM_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
 
+#define PIN_TOUCH_CS 21
+
 #define LCD_H_RES 320
 #define LCD_V_RES 240
 #define LCD_CMD_BITS 8
@@ -41,9 +45,47 @@ static char *TAG = "lcd";
 
 LV_IMG_DECLARE(esp_logo);
 
+static esp_lcd_touch_handle_t tp = NULL;
 static esp_lcd_panel_io_handle_t io_handle = NULL;
 static esp_lcd_panel_handle_t panel_handle = NULL;
 static lv_display_t *lvgl_disp = NULL;
+
+static esp_err_t spi_init(void)
+{
+    spi_bus_config_t buscfg = {
+        .sclk_io_num = PIN_NUM_SCK,
+        .mosi_io_num = PIN_NUM_MOSI,
+        .miso_io_num = -1,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(SPI_HOST, &buscfg, SPI_DMA_CH_AUTO));
+
+    return ESP_OK;
+}
+
+static esp_err_t lcd_touch_init(void)
+{
+    esp_lcd_panel_io_spi_config_t tp_io_config = ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(PIN_TOUCH_CS);
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI_HOST, &tp_io_config, &io_handle));
+
+    esp_lcd_touch_config_t tp_cfg = {
+        .x_max = LCD_H_RES,
+        .y_max = LCD_V_RES,
+        .rst_gpio_num = -1,
+        .int_gpio_num = -1,
+        .flags = {
+            .swap_xy = 0,
+            .mirror_x = 0,
+            .mirror_y = 0,
+        },
+    };
+
+    ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(io_handle, &tp_cfg, &tp));
+
+    return ESP_OK;
+}
 
 static esp_err_t lcd_init(void)
 {
@@ -55,16 +97,6 @@ static esp_err_t lcd_init(void)
     };
     ESP_ERROR_CHECK(gpio_config(&bk_gpio_config));
 
-    spi_bus_config_t buscfg = {
-        .sclk_io_num = PIN_NUM_SCK,
-        .mosi_io_num = PIN_NUM_MOSI,
-        .miso_io_num = -1,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(LCD_HOST, &buscfg, SPI_DMA_CH_AUTO));
-
     esp_lcd_panel_io_spi_config_t io_config = {
         .dc_gpio_num = PIN_NUM_DC,
         .cs_gpio_num = PIN_NUM_CS,
@@ -75,7 +107,7 @@ static esp_err_t lcd_init(void)
         .trans_queue_depth = 10,
     };
 
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_config, &io_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI_HOST, &io_config, &io_handle));
 
     esp_lcd_panel_dev_config_t panel_config = {
         .reset_gpio_num = PIN_NUM_RST,
@@ -176,6 +208,13 @@ static esp_err_t lvgl_init(void)
     };
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
+    /* 添加LVGL接口 */
+    const lvgl_port_touch_cfg_t touch_cfg = {
+        .disp = lvgl_disp,
+        .handle = tp,
+    };
+    lvgl_port_add_touch(&touch_cfg);
+
     return ESP_OK;
 }
 
@@ -207,7 +246,9 @@ static void app_main_display(void)
 
 void app_main(void)
 {
+    ESP_ERROR_CHECK(spi_init());
     ESP_ERROR_CHECK(lcd_init());
+    ESP_ERROR_CHECK(lcd_touch_init());
     ESP_ERROR_CHECK(lvgl_init());
 
     // lcd_set_color(panel_handle, 0x0000);
