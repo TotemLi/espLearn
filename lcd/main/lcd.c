@@ -48,6 +48,7 @@ static char *TAG = "lcd";
 LV_IMG_DECLARE(esp_logo);
 
 static esp_lcd_touch_handle_t tp = NULL;
+static esp_lcd_panel_io_handle_t tp_io_handle = NULL;
 static esp_lcd_panel_io_handle_t io_handle = NULL;
 static esp_lcd_panel_handle_t panel_handle = NULL;
 static lv_display_t *lvgl_disp = NULL;
@@ -57,7 +58,7 @@ static esp_err_t spi_init(void)
     spi_bus_config_t buscfg = {
         .sclk_io_num = PIN_SCK,
         .mosi_io_num = PIN_MOSI,
-        .miso_io_num = -1,
+        .miso_io_num = PIN_MISO,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = LCD_H_RES * 80 * sizeof(uint16_t),
@@ -70,7 +71,7 @@ static esp_err_t spi_init(void)
 static esp_err_t lcd_touch_init(void)
 {
     esp_lcd_panel_io_spi_config_t tp_io_config = ESP_LCD_TOUCH_IO_SPI_XPT2046_CONFIG(PIN_TOUCH_CS);
-    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI_HOST, &tp_io_config, &io_handle));
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)SPI_HOST, &tp_io_config, &tp_io_handle));
 
     esp_lcd_touch_config_t tp_cfg = {
         .x_max = LCD_H_RES,
@@ -78,13 +79,13 @@ static esp_err_t lcd_touch_init(void)
         .rst_gpio_num = -1,
         .int_gpio_num = -1,
         .flags = {
-            .swap_xy = 0,
-            .mirror_x = 0,
-            .mirror_y = 0,
+            .swap_xy = false,
+            .mirror_x = false,
+            .mirror_y = false,
         },
     };
 
-    ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(io_handle, &tp_cfg, &tp));
+    ESP_ERROR_CHECK(esp_lcd_touch_new_spi_xpt2046(tp_io_handle, &tp_cfg, &tp));
 
     return ESP_OK;
 }
@@ -180,10 +181,10 @@ static esp_err_t lvgl_init(void)
     /* Initialize LVGL */
     const lvgl_port_cfg_t lvgl_cfg = {
         .task_priority = 4,       /* LVGL task priority */
-        .task_stack = 4096,       /* LVGL task stack size */
+        .task_stack = 16384,      /* LVGL task stack size */
         .task_affinity = -1,      /* LVGL task pinned to core (-1 is no affinity) */
         .task_max_sleep_ms = 500, /* Maximum sleep in LVGL task */
-        .timer_period_ms = 5      /* LVGL timer tick period in ms */
+        .timer_period_ms = 10     /* LVGL timer tick period in ms */
     };
     ESP_RETURN_ON_ERROR(lvgl_port_init(&lvgl_cfg), TAG, "LVGL port initialization failed");
 
@@ -210,28 +211,14 @@ static esp_err_t lvgl_init(void)
     };
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
-    // /* 添加LVGL接口 */
-    // const lvgl_port_touch_cfg_t touch_cfg = {
-    //     .disp = lvgl_disp,
-    //     .handle = tp,
-    // };
-    // lvgl_port_add_touch(&touch_cfg);
+    /* 添加LVGL接口 */
+    const lvgl_port_touch_cfg_t touch_cfg = {
+        .disp = lvgl_disp,
+        .handle = tp,
+    };
+    lvgl_port_add_touch(&touch_cfg);
 
     return ESP_OK;
-}
-
-// 事件回调函数
-void event_handler(lv_event_t *e)
-{
-    int code = lv_event_get_code(e);
-    lv_obj_t *obj = lv_event_get_target(e);
-
-    if (code == LV_EVENT_CLICKED)
-    {
-        lv_obj_t *label = lv_event_get_user_data(e);
-        lv_label_set_text(label, "itheima");
-        printf("clicked\n");
-    }
 }
 
 static void app_main_display(void)
@@ -260,6 +247,20 @@ static void app_main_display(void)
     lvgl_port_unlock();
 }
 
+// 事件回调函数
+void event_handler(lv_event_t *e)
+{
+    int code = lv_event_get_code(e);
+    lv_obj_t *obj = lv_event_get_target(e);
+
+    if (code == LV_EVENT_CLICKED)
+    {
+        lv_obj_t *label = lv_event_get_user_data(e);
+        lv_label_set_text(label, "itheima");
+        printf("clicked\n");
+    }
+}
+
 static void show_button(void)
 {
     // 创建按钮
@@ -269,24 +270,29 @@ static void show_button(void)
     lv_obj_t *label = lv_label_create(btn);
     lv_label_set_text(label, "button");
     // 给按钮设置点击事件处理
-    lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn, event_handler, LV_EVENT_CLICKED, label);
 }
 
 void app_main(void)
 {
     ESP_ERROR_CHECK(spi_init());
     ESP_ERROR_CHECK(lcd_init());
-    // ESP_ERROR_CHECK(lcd_touch_init());
+    ESP_ERROR_CHECK(lcd_touch_init());
     ESP_ERROR_CHECK(lvgl_init());
 
     // lcd_set_color(panel_handle, 0x0000);
 
-    app_main_display();
-    // show_button();
+    // app_main_display();
+    show_button();
 
     // 全屏显示未红色
     // lcd_set_color(panel_handle, 0x0000);
 
     // 显示图片
     // lcd_draw_pictrue(panel_handle, 0, 0, 320, 240, gImage_yingwu);
+
+    while (1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
 }
