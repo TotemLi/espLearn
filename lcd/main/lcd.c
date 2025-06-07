@@ -211,7 +211,7 @@ static esp_err_t lvgl_init(void)
     };
     lvgl_disp = lvgl_port_add_disp(&disp_cfg);
 
-    /* 添加LVGL接口 */
+    // 添加触摸
     const lvgl_port_touch_cfg_t touch_cfg = {
         .disp = lvgl_disp,
         .handle = tp,
