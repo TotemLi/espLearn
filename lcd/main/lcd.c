@@ -35,7 +35,8 @@ static char *TAG = "lcd";
 #define PIN_LCD_RST 16     // 复位信号，低电平复位
 #define PIN_LCD_BK_LIGHT 5 // 背光控制，高电平点亮，如无需控制则接3.3V常亮
 
-#define PIN_TOUCH_CS 18
+#define PIN_TOUCH_CS 18 // 片选信号
+#define PIN_TOUCH_INT 8 // 中断引脚，检测到触摸时为低电平
 
 #define LCD_H_RES 320
 #define LCD_V_RES 240
@@ -77,7 +78,10 @@ static esp_err_t lcd_touch_init(void)
         .x_max = LCD_H_RES,
         .y_max = LCD_V_RES,
         .rst_gpio_num = -1,
-        .int_gpio_num = -1,
+        .int_gpio_num = PIN_TOUCH_INT,
+        .levels = {
+            .interrupt = 0,
+        },
         .flags = {
             .swap_xy = false,
             .mirror_x = false,
