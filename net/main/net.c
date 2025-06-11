@@ -16,15 +16,13 @@
 
 static const char *TAG = "net";
 
-static EventGroupHandle_t s_wifi_event_group;
-
 // #define SSID "TP-LINK_A659"
 // #define PASSWORD "lichaolong"
-#define SSID "XIAOJING"
-#define PASSWORD "xiaojing"
-#define AUTHMODE WIFI_AUTH_WPA2_PSK
+// #define SSID "XIAOJING"
+// #define PASSWORD "xiaojing"
+// #define AUTHMODE WIFI_AUTH_WPA2_PSK
 
-#define MAX_HTTP_OUTPUT_BUFFER 2048
+#define MAX_HTTP_OUTPUT_BUFFER 4096
 
 esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 {
@@ -130,15 +128,17 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
 
 static void http_get_task(void *pvParameters)
 {
+    ESP_LOGI(TAG, "HTTP request with url =>");
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
     esp_http_client_config_t config = {
-        .host = "http://api.spreadwin.cn",
+        .host = "api.spreadwin.cn",
         .path = "/",
+        .method = HTTP_METHOD_GET,
         .event_handler = _http_event_handler,
         .user_data = local_response_buffer, // Pass address of local buffer to get response
         .disable_auto_redirect = true,
+        .timeout_ms = 5000,
     };
-    ESP_LOGI(TAG, "HTTP request with url =>");
     esp_http_client_handle_t client = esp_http_client_init(&config);
 
     esp_err_t err = esp_http_client_perform(client);
@@ -152,7 +152,9 @@ static void http_get_task(void *pvParameters)
     {
         ESP_LOGE(TAG, "HTTP GET request failed: %s", esp_err_to_name(err));
     }
-    ESP_LOG_BUFFER_HEX(TAG, local_response_buffer, strlen(local_response_buffer));
+    ESP_LOGI(TAG, "HTTP Response:\n%s", local_response_buffer);
+
+    vTaskDelete(NULL);
 }
 
 void app_main(void)
@@ -167,7 +169,9 @@ void app_main(void)
 
     wifi_init();
 
-    // xTaskCreate(&http_get_task, "http_get_task", 4096, NULL, 5, NULL);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+
+    xTaskCreate(&http_get_task, "http_get_task", 8192, NULL, 5, NULL);
 
     while (1)
     {
