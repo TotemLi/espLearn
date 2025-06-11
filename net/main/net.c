@@ -126,7 +126,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-static void http_get_task(void *pvParameters)
+static void http_rest_with_url(void *pvParameters)
 {
     ESP_LOGI(TAG, "HTTP request with url =>");
     char local_response_buffer[MAX_HTTP_OUTPUT_BUFFER + 1] = {0};
@@ -171,7 +171,7 @@ void app_main(void)
 
     vTaskDelay(pdMS_TO_TICKS(10000));
 
-    xTaskCreate(&http_get_task, "http_get_task", 8192, NULL, 5, NULL);
+    xTaskCreate(&http_rest_with_url, "http_rest_with_url", 8192, NULL, 5, NULL);
 
     while (1)
     {
