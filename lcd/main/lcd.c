@@ -265,10 +265,41 @@ void event_handler(lv_event_t *e)
     }
 }
 
+// 右滑事件回调函数
+static void screen_swipe_event_cb(lv_event_t *e)
+{
+    // 获取事件代码
+    lv_event_code_t code = lv_event_get_code(e);
+
+    // 获取触发事件的对象
+    lv_obj_t *obj = lv_event_get_target(e);
+
+    // 检查是否为手势事件
+    if (code == LV_EVENT_GESTURE)
+    {
+        // 获取手势方向
+        lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
+
+        // 判断是否为右滑
+        if (dir == LV_DIR_RIGHT)
+        {
+            // 执行右滑后的操作
+            ESP_LOGI(TAG, "右滑事件");
+
+            // 示例：切换到下一个屏幕
+            // lv_scr_load_anim(next_screen, LV_SCR_LOAD_ANIM_MOVE_LEFT, 300, 0, false);
+        }
+    }
+}
+
 static void show_button(void)
 {
+    lv_obj_t *scr = lv_scr_act();
+    // 注册事件回调
+    lv_obj_add_event_cb(scr, screen_swipe_event_cb, LV_EVENT_GESTURE, NULL);
+
     // 创建按钮
-    lv_obj_t *btn = lv_btn_create(lv_scr_act());
+    lv_obj_t *btn = lv_btn_create(scr);
     lv_obj_align(btn, LV_ALIGN_CENTER, 0, 0);
     // 创建按钮上的文本
     lv_obj_t *label = lv_label_create(btn);
